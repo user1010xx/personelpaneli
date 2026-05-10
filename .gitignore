@@ -1,0 +1,51 @@
+node_modules/
+*.pyc
+__pycache__/
+*.egg-info/
+.env
+.DS_Store
+dist/
+build/
+*.log
+.vscode/
+.idea/
+postgres_data/
+.venv/
+venv/
+
+# Auto-generated entries
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Sensitive files (auto-detected)
+.env.example
+.env.production
+
