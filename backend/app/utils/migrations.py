@@ -22,5 +22,7 @@ def upgrade_database():
     if engine.url.get_backend_name() == "sqlite":
         return
     ensure_schema_version()
-    config = Config("alembic.ini")
+    config = Config()
+    config.set_main_option("script_location", "alembic")
+    config.set_main_option("sqlalchemy.url", str(engine.url))
     command.upgrade(config, "head")
