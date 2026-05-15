@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from .config import settings
 from .database import Base, SessionLocal, engine, get_db
-from .routes import auth, users, personnel, sales, attendance, warnings, training, call_monitoring, whatsapp, call_process, docs_links, dashboard
+from .routes import auth, users, personnel, sales, attendance, warnings, training, call_monitoring, whatsapp, call_process, docs_links, dashboard, setup
 from .utils.bootstrap import ensure_initial_admin
 from .utils.migrations import upgrade_database
 
@@ -108,6 +108,7 @@ app.include_router(whatsapp.router)
 app.include_router(call_process.router)
 app.include_router(docs_links.router)
 app.include_router(dashboard.router)
+app.include_router(setup.router)
 
 @app.get("/")
 def root():
