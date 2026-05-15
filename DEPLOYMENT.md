@@ -131,7 +131,7 @@ docker push your-registry/personelpanel-frontend:prod
 # Container run
 docker run -d \
   --name personelpanel-frontend \
-  -e REACT_APP_API_URL=https://api.yourdomain.com/api \
+  -e VITE_API_URL=https://api.yourdomain.com/api \
   -p 3000:3000 \
   personelpanel-frontend:prod
 ```
@@ -158,7 +158,7 @@ services:
   frontend:
     image: your-registry/personelpanel-frontend:prod
     environment:
-      REACT_APP_API_URL: https://api.yourdomain.com/api
+      VITE_API_URL: https://api.yourdomain.com/api
     restart: always
 
   db:

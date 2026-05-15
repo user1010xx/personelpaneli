@@ -16,7 +16,7 @@ class SalesData(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    personnel = relationship("Personnel")
+    personnel = relationship("Personnel", back_populates="sales_data")
     
     # Unique constraint: one entry per personnel per date
     # Check constraint: sales_count must be 0-10000

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Float, Text, Index
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Float, Text, Index, CheckConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from ..database import Base
@@ -17,9 +17,10 @@ class CallMonitoring(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    personnel = relationship("Personnel")
+    personnel = relationship("Personnel", back_populates="call_monitoring")
     
     # Composite index for performance
     __table_args__ = (
         Index('idx_call_monitoring_personnel_date', 'personnel_id', 'date'),
+        CheckConstraint('quality_score >= 0 AND quality_score <= 100', name='call_monitoring_quality_score_range'),
     )

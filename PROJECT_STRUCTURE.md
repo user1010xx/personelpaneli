@@ -114,7 +114,7 @@ personelpanel.py/
 ### Backend Modülleri
 
 #### 1. Authentication (routes/auth.py)
-- Kayıt, giriş, token yönetimi
+- Kayıt, giriş, token yönetimi, mevcut kullanıcı profili
 - JWT-based authentication
 
 #### 2. User Management (routes/users.py)
@@ -124,6 +124,7 @@ personelpanel.py/
 #### 3. Personnel (routes/personnel.py)
 - Personel bilgileri yönetimi
 - Departman, pozisyon, iletişim bilgileri
+- Docs senkronizasyonu
 
 #### 4. Sales (routes/sales.py)
 - Günlük satış verileri
@@ -155,6 +156,16 @@ personelpanel.py/
 - Cevapsız mesaj takibi
 - Günlük veriler
 - Docs senkronizasyonu
+
+#### 10. Call Process (routes/call_process.py)
+- Çağrı süreç verileri
+- Excel yükleme ve özetleme
+
+#### 11. Docs Links (routes/docs_links.py)
+- Google Docs / Sheets bağlantı anahtarları yönetimi
+
+#### 12. Dashboard (routes/dashboard.py)
+- Yönetim paneli özet metrikleri
 
 ### Frontend Sayfaları
 

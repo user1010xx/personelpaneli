@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import date, datetime
 
 class WarningDataBase(BaseModel):
+    deduction: Optional[str] = None
     subject: str
     date: date
     notes: Optional[str] = None
@@ -16,18 +17,21 @@ class WarningDataBase(BaseModel):
             raise ValueError('Subject cannot exceed 200 characters')
         return v.strip()
     
-    @field_validator('date')
-    @classmethod
-    def validate_date(cls, v):
-        if v > date.today():
-            raise ValueError('Warning date cannot be in the future')
-        return v
-    
     @field_validator('notes')
     @classmethod
     def validate_notes(cls, v):
         if v is not None and len(v) > 1000:
             raise ValueError('Notes cannot exceed 1000 characters')
+        return v
+
+    @field_validator('deduction')
+    @classmethod
+    def validate_deduction(cls, v):
+        if v is not None:
+            value = v.strip()
+            if len(value) > 100:
+                raise ValueError('Deduction cannot exceed 100 characters')
+            return value or None
         return v
 
 class WarningDataCreate(WarningDataBase):
@@ -47,13 +51,6 @@ class WarningDataUpdate(BaseModel):
             if len(v.strip()) > 200:
                 raise ValueError('Subject cannot exceed 200 characters')
             return v.strip()
-        return v
-    
-    @field_validator('date')
-    @classmethod
-    def validate_date(cls, v):
-        if v is not None and v > date.today():
-            raise ValueError('Warning date cannot be in the future')
         return v
     
     @field_validator('notes')

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Float, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Float, UniqueConstraint, Index, CheckConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from ..database import Base
@@ -20,11 +20,15 @@ class AttendanceData(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    personnel = relationship("Personnel")
+    personnel = relationship("Personnel", back_populates="attendance_data")
     
     # Unique: one entry per personnel per month/year
     # Composite index for performance
     __table_args__ = (
         UniqueConstraint('personnel_id', 'month', 'year', name='unique_personnel_month_year'),
         Index('idx_personnel_month_year', 'personnel_id', 'month', 'year'),
+        CheckConstraint('month >= 1 AND month <= 12', name='attendance_month_range'),
+        CheckConstraint('working_days >= 0 AND working_days <= 31', name='attendance_working_days_range'),
+        CheckConstraint('leave_days >= 0 AND leave_days <= 31', name='attendance_leave_days_range'),
+        CheckConstraint('salary_amount IS NULL OR salary_amount >= 0', name='attendance_salary_non_negative'),
     )

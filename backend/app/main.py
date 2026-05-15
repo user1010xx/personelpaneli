@@ -1,32 +1,64 @@
-from fastapi import FastAPI, HTTPException
+﻿import logging
+import uuid
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Depends, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.extension import _rate_limit_exceeded_handler
+from sqlalchemy.orm import Session
+from sqlalchemy import text
 from .config import settings
-from .database import Base, engine
-from .routes import auth, users, personnel, sales, attendance, warnings, training, call_monitoring, whatsapp
+from .database import Base, SessionLocal, engine, get_db
+from .routes import auth, users, personnel, sales, attendance, warnings, training, call_monitoring, whatsapp, call_process, docs_links, dashboard
+from .utils.bootstrap import ensure_initial_admin
+from .utils.migrations import upgrade_database
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    upgrade_database()
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        ensure_initial_admin(db)
+    finally:
+        db.close()
+    yield
+
 app = FastAPI(
     title=settings.API_TITLE,
     version=settings.API_VERSION,
-    description="Personel Panel API - Call Center Management System"
+    description="Personel Panel API - Call Center Management System",
+    lifespan=lifespan,
 )
 
-# CORS middleware
+app.state.limiter = auth.limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
-# Global exception handlers
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
     return JSONResponse(
@@ -36,22 +68,34 @@ async def http_exception_handler(request, exc):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
+    sanitized_errors = []
+    for error in exc.errors():
+        sanitized_error = dict(error)
+        context = sanitized_error.get('ctx')
+        if context:
+            sanitized_error['ctx'] = {key: str(value) for key, value in context.items()}
+        sanitized_errors.append(sanitized_error)
     return JSONResponse(
         status_code=422,
-        content={"detail": str(exc), "errors": exc.errors()},
+        content=jsonable_encoder({"detail": "Validation error", "errors": sanitized_errors}),
     )
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    request_id = getattr(request.state, "request_id", None)
+    logger.error(
+        "Unhandled exception on %s %s request_id=%s: %s",
+        request.method,
+        request.url.path,
+        request_id,
+        str(exc),
+        exc_info=True,
+    )
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error", "type": type(exc).__name__},
+        content={"detail": "Internal server error", "request_id": request_id},
     )
 
-# Include routers
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(personnel.router)
@@ -61,10 +105,12 @@ app.include_router(warnings.router)
 app.include_router(training.router)
 app.include_router(call_monitoring.router)
 app.include_router(whatsapp.router)
+app.include_router(call_process.router)
+app.include_router(docs_links.router)
+app.include_router(dashboard.router)
 
 @app.get("/")
 def root():
-    """API health check"""
     return {
         "message": "Personel Panel API",
         "version": settings.API_VERSION,
@@ -72,16 +118,20 @@ def root():
     }
 
 @app.get("/health")
-def health_check():
-    """Health check endpoint"""
+def health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception:
+        db_status = "disconnected"
+
     return {
-        "status": "healthy",
-        "database": "connected"
+        "status": "healthy" if db_status == "connected" else "unhealthy",
+        "database": db_status
     }
 
 @app.get("/api/docs")
 def api_docs():
-    """API Documentation"""
     return {
         "title": settings.API_TITLE,
         "version": settings.API_VERSION,
@@ -94,14 +144,9 @@ def api_docs():
             "warnings": "/api/warnings",
             "training": "/api/training",
             "call_monitoring": "/api/call-monitoring",
-            "whatsapp": "/api/whatsapp"
+            "whatsapp": "/api/whatsapp",
+            "call_process": "/api/call-process",
+            "docs_links": "/api/docs-links",
+            "dashboard": "/api/dashboard"
         }
     }
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    """Global exception handler"""
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error", "error": str(exc)}
-    )

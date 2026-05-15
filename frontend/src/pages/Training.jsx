@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from 'react'
 import { trainingApi, personnelApi } from '../api'
+import { useAuth } from '../App'
+import { formatLocalDate } from '../utils/date'
+import { exportRowsToExcel } from '../utils/exportExcel'
 
 export default function Training() {
+  const { isAdmin } = useAuth()
   const [training, setTraining] = useState([])
   const [personnel, setPersonnel] = useState([])
   const [selectedPersonnel, setSelectedPersonnel] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' })
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     personnel_id: '',
     subject: '',
-    date: new Date().toISOString().split('T')[0],
+    date: formatLocalDate(),
     start_time: '09:00',
     end_time: '10:00',
     trainer: '',
@@ -22,6 +29,26 @@ export default function Training() {
     loadPersonnel()
     loadTraining()
   }, [selectedPersonnel])
+
+  const formatDisplayDate = (value) => {
+    if (!value) return '-'
+    const parts = String(value).split('-')
+    if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`
+    return value
+  }
+
+  const requestSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+    setSortConfig({ key, direction })
+  }
+
+  const getSortArrow = (key) => {
+    if (sortConfig.key !== key) return '↕'
+    return sortConfig.direction === 'asc' ? '↑' : '↓'
+  }
 
   const loadPersonnel = async () => {
     try {
@@ -52,6 +79,7 @@ export default function Training() {
   const handleAddTraining = async (e) => {
     e.preventDefault()
     try {
+      setError('')
       await trainingApi.create({
         ...formData,
         personnel_id: parseInt(formData.personnel_id),
@@ -59,34 +87,99 @@ export default function Training() {
       setFormData({
         personnel_id: '',
         subject: '',
-        date: new Date().toISOString().split('T')[0],
+        date: formatLocalDate(),
         start_time: '09:00',
         end_time: '10:00',
         trainer: '',
         notes: '',
       })
       setShowForm(false)
-      loadTraining()
-      alert('Eğitim kaydı başarıyla eklendi')
+      await loadTraining()
+      setSuccessMessage('ISLEM TAMAMLANDI')
     } catch (err) {
       setError(err.message)
     }
   }
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Silmek istediğinizden emin misiniz?')) {
-      try {
-        await trainingApi.delete(id)
-        loadTraining()
-      } catch (err) {
-        setError(err.message)
-      }
+  const handleDeleteTraining = async (trainingId) => {
+    try {
+      setError('')
+      await trainingApi.delete(trainingId)
+      await loadTraining()
+      setSuccessMessage('ISLEM TAMAMLANDI')
+    } catch (err) {
+      setError(err.message)
     }
+  }
+
+  const getFilteredTraining = () => {
+    const mappedTraining = training.map((item) => ({
+      ...item,
+      personnel_name: personnel.find((person) => person.id === item.personnel_id)?.name || '',
+    }))
+
+    const filteredTraining = mappedTraining.filter((item) => {
+      const haystack = [
+        item.personnel_name,
+        item.subject,
+        item.trainer,
+        item.notes,
+        item.date,
+      ].join(' ').toLocaleLowerCase('tr')
+      return haystack.includes(searchTerm.toLocaleLowerCase('tr'))
+    })
+
+    return [...filteredTraining].sort((first, second) => {
+      let comparison = 0
+      if (sortConfig.key === 'date') {
+        comparison = new Date(first.date).getTime() - new Date(second.date).getTime()
+      } else {
+        comparison = String(first[sortConfig.key] ?? '').localeCompare(
+          String(second[sortConfig.key] ?? ''),
+          'tr',
+          { sensitivity: 'base' }
+        )
+      }
+      return sortConfig.direction === 'asc' ? comparison : -comparison
+    })
+  }
+
+  const exportToExcel = () => {
+    exportRowsToExcel(
+      getFilteredTraining().map((item) => ({
+        Personel: item.personnel_name,
+        Baslik: item.subject,
+        Tarih: formatDisplayDate(item.date),
+        Saat: `${item.start_time} - ${item.end_time}`,
+        Yetkili: item.trainer || '-',
+        Not: item.notes || '-',
+      })),
+      'Egitim ve Geribildirim',
+      'egitim_geribildirim'
+    )
   }
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-8">Eğitim & Geribildirim Yönetimi</h1>
+      {successMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl text-green-600">
+              ✓
+            </div>
+            <h2 className="mb-2 text-2xl font-bold text-gray-900">{successMessage}</h2>
+            <p className="mb-6 text-sm text-gray-500">Islem basariyla tamamlandi.</p>
+            <button
+              onClick={() => setSuccessMessage('')}
+              className="rounded-lg bg-green-600 px-6 py-3 font-bold text-white transition hover:bg-green-700"
+            >
+              Tamam
+            </button>
+          </div>
+        </div>
+      )}
+
+      <h1 className="text-3xl font-bold mb-8">Egitim ve Geribildirim</h1>
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -94,7 +187,7 @@ export default function Training() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div>
           <label className="block text-gray-700 font-bold mb-2">Personel Filtreleme</label>
           <select
@@ -102,27 +195,48 @@ export default function Training() {
             onChange={(e) => setSelectedPersonnel(e.target.value ? parseInt(e.target.value) : null)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg"
           >
-            <option value="">Tümü</option>
-            {personnel.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+            <option value="">Tumu</option>
+            {personnel.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
               </option>
             ))}
           </select>
         </div>
+        {isAdmin && (
         <div className="flex items-end">
           <button
             onClick={() => setShowForm(!showForm)}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition"
           >
-            {showForm ? 'İptal' : 'Eğitim Ekle'}
+            {showForm ? 'Iptal' : 'Kayit Ekle'}
+          </button>
+        </div>
+        )}
+        <div className="flex items-end">
+          <button
+            onClick={exportToExcel}
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition"
+          >
+            Export
           </button>
         </div>
       </div>
 
-      {showForm && (
+      <div className="mb-8">
+        <label className="block text-gray-700 font-bold mb-2">Ara</label>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Personel, baslik, yetkili veya not ara"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+        />
+      </div>
+
+      {isAdmin && showForm && (
         <div className="bg-white p-6 rounded-lg shadow mb-8">
-          <h2 className="text-xl font-bold mb-4">Yeni Eğitim Ekle</h2>
+          <h2 className="text-xl font-bold mb-4">Yeni Egitim ve Geribildirim Kaydi</h2>
           <form onSubmit={handleAddTraining} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-gray-700 font-bold mb-2">Personel</label>
@@ -132,21 +246,22 @@ export default function Training() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 required
               >
-                <option value="">Seçiniz</option>
-                {personnel.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                <option value="">Seciniz</option>
+                {personnel.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-gray-700 font-bold mb-2">Eğitim Konusu</label>
+              <label className="block text-gray-700 font-bold mb-2">Baslik</label>
               <input
                 type="text"
                 value={formData.subject}
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                placeholder="Egitim veya geribildirim konusu"
                 required
               />
             </div>
@@ -161,7 +276,7 @@ export default function Training() {
               />
             </div>
             <div>
-              <label className="block text-gray-700 font-bold mb-2">Eğitmen</label>
+              <label className="block text-gray-700 font-bold mb-2">Egitmen / Geri Bildirim Veren</label>
               <input
                 type="text"
                 value={formData.trainer}
@@ -170,7 +285,7 @@ export default function Training() {
               />
             </div>
             <div>
-              <label className="block text-gray-700 font-bold mb-2">Başlangıç Saati</label>
+              <label className="block text-gray-700 font-bold mb-2">Baslangic Saati</label>
               <input
                 type="time"
                 value={formData.start_time}
@@ -180,7 +295,7 @@ export default function Training() {
               />
             </div>
             <div>
-              <label className="block text-gray-700 font-bold mb-2">Bitiş Saati</label>
+              <label className="block text-gray-700 font-bold mb-2">Bitis Saati</label>
               <input
                 type="time"
                 value={formData.end_time}
@@ -190,13 +305,13 @@ export default function Training() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-gray-700 font-bold mb-2">Notlar</label>
+              <label className="block text-gray-700 font-bold mb-2">Not</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                rows="2"
-              ></textarea>
+                rows="3"
+              />
             </div>
             <div className="md:col-span-2">
               <button
@@ -212,43 +327,43 @@ export default function Training() {
 
       <div className="bg-white p-6 rounded-lg shadow">
         <h2 className="text-xl font-bold mb-4">
-          {selectedPersonnel ? 'Personel Eğitimleri' : 'Tüm Eğitimler'}
+          {selectedPersonnel ? 'Personel Kayitlari' : 'Tum Kayitlar'}
         </h2>
         {loading ? (
-          <p className="text-center text-gray-500">Yükleniyor...</p>
+          <p className="text-center text-gray-500">Yukleniyor...</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="px-4 py-2 text-left">Personel</th>
-                  <th className="px-4 py-2 text-left">Konu</th>
-                  <th className="px-4 py-2 text-left">Tarih</th>
+                  <th className="px-4 py-2 text-left cursor-pointer" onClick={() => requestSort('personnel_name')}>Personel {getSortArrow('personnel_name')}</th>
+                  <th className="px-4 py-2 text-left cursor-pointer" onClick={() => requestSort('subject')}>Baslik {getSortArrow('subject')}</th>
+                  <th className="px-4 py-2 text-left cursor-pointer" onClick={() => requestSort('date')}>Tarih {getSortArrow('date')}</th>
                   <th className="px-4 py-2 text-center">Saat</th>
-                  <th className="px-4 py-2 text-left">Eğitmen</th>
-                  <th className="px-4 py-2 text-center">İşlem</th>
+                  <th className="px-4 py-2 text-left cursor-pointer" onClick={() => requestSort('trainer')}>Yetkili {getSortArrow('trainer')}</th>
+                  <th className="px-4 py-2 text-left cursor-pointer" onClick={() => requestSort('notes')}>Not {getSortArrow('notes')}</th>
+                  {isAdmin && <th className="px-4 py-2 text-center">Sil</th>}
                 </tr>
               </thead>
               <tbody>
-                {training.map((t) => (
-                  <tr key={t.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-2">
-                      {personnel.find((p) => p.id === t.personnel_id)?.name}
-                    </td>
-                    <td className="px-4 py-2">{t.subject}</td>
-                    <td className="px-4 py-2">{t.date}</td>
-                    <td className="px-4 py-2 text-center text-sm">
-                      {t.start_time} - {t.end_time}
-                    </td>
-                    <td className="px-4 py-2">{t.trainer}</td>
+                {getFilteredTraining().map((item) => (
+                  <tr key={item.id} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-2">{item.personnel_name}</td>
+                    <td className="px-4 py-2">{item.subject}</td>
+                    <td className="px-4 py-2">{formatDisplayDate(item.date)}</td>
+                    <td className="px-4 py-2 text-center">{item.start_time} - {item.end_time}</td>
+                    <td className="px-4 py-2">{item.trainer}</td>
+                    <td className="px-4 py-2">{item.notes}</td>
+                    {isAdmin && (
                     <td className="px-4 py-2 text-center">
                       <button
-                        onClick={() => handleDelete(t.id)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition"
+                        onClick={() => handleDeleteTraining(item.id)}
+                        className="rounded bg-red-500 px-3 py-1 text-sm font-bold text-white transition hover:bg-red-600"
                       >
                         Sil
                       </button>
                     </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

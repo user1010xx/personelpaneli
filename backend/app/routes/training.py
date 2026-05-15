@@ -1,27 +1,32 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+﻿from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
-from ..utils.auth import get_current_user
+from ..utils.auth import get_current_user, get_admin_user
 from ..models import TrainingData
 from ..schemas.training import TrainingDataResponse, TrainingDataCreate, TrainingDataUpdate
+from ..utils.db import safe_commit
+from ..utils.pagination import normalize_pagination
 
-router = APIRouter(prefix="/api/training", tags=["Training Management"])
+router = APIRouter(prefix="/api/training", tags=["Eğitim ve Geribildirim"])
 
 @router.get("/", response_model=List[TrainingDataResponse])
 def list_training(
     personnel_id: int = None,
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """List training records with optional personnel filter"""
+    skip, limit = normalize_pagination(skip, limit)
     
     query = db.query(TrainingData)
     
     if personnel_id:
         query = query.filter(TrainingData.personnel_id == personnel_id)
     
-    training = query.order_by(TrainingData.date.desc()).all()
+    training = query.order_by(TrainingData.date.desc()).offset(skip).limit(limit).all()
     return training
 
 @router.get("/personnel/{personnel_id}", response_model=List[TrainingDataResponse])
@@ -42,13 +47,13 @@ def get_personnel_training(
 def create_training(
     training: TrainingDataCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_admin_user)
 ):
     """Create training record (manual entry)"""
     
-    db_training = TrainingData(**training.dict())
+    db_training = TrainingData(**training.model_dump())
     db.add(db_training)
-    db.commit()
+    safe_commit(db, message="Training record could not be created")
     db.refresh(db_training)
     return db_training
 
@@ -57,7 +62,7 @@ def update_training(
     training_id: int,
     training_update: TrainingDataUpdate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_admin_user)
 ):
     """Update training record"""
     
@@ -65,11 +70,11 @@ def update_training(
     if not training:
         raise HTTPException(status_code=404, detail="Training record not found")
     
-    update_data = training_update.dict(exclude_unset=True)
+    update_data = training_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(training, field, value)
     
-    db.commit()
+    safe_commit(db, message="Training record could not be updated")
     db.refresh(training)
     return training
 
@@ -77,7 +82,7 @@ def update_training(
 def delete_training(
     training_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_admin_user)
 ):
     """Delete training record"""
     
@@ -86,5 +91,5 @@ def delete_training(
         raise HTTPException(status_code=404, detail="Training record not found")
     
     db.delete(training)
-    db.commit()
+    safe_commit(db, message="Training record could not be deleted")
     return {"detail": "Training record deleted"}

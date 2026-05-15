@@ -1,12 +1,47 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from datetime import timedelta
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from ..database import get_db
-from ..utils.auth import hash_password, verify_password, create_access_token, get_current_user
-from ..models import User
-from ..schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
+from ..utils.auth import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    hash_token,
+    decode_token,
+    get_active_user,
+    get_admin_user,
+)
+from ..utils.dates import ensure_aware_utc, utc_now
+from ..models import User, RefreshToken
+from ..schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest
+from ..config import settings
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+limiter = Limiter(key_func=get_remote_address, enabled=settings.RATE_LIMIT_ENABLED)
+
+
+def issue_token_pair(user: User, db: Session):
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    access_token = create_access_token(
+        data={"sub": user.username, "user_id": user.id, "role": user.role},
+        expires_delta=access_token_expires
+    )
+    refresh_token, refresh_expires_at = create_refresh_token(
+        data={"sub": user.username, "user_id": user.id, "role": user.role},
+        expires_delta=refresh_token_expires
+    )
+    db_refresh_token = RefreshToken(
+        user_id=user.id,
+        token_hash=hash_token(refresh_token),
+        expires_at=refresh_expires_at,
+    )
+    db.add(db_refresh_token)
+    db.flush()
+    return access_token, refresh_token
 
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db), admin: dict = Depends(get_admin_user)):
@@ -41,8 +76,20 @@ def register(user: UserCreate, db: Session = Depends(get_db), admin: dict = Depe
     db.refresh(db_user)
     return db_user
 
+@router.get("/me", response_model=UserResponse)
+def get_me(db: Session = Depends(get_db), current_user: dict = Depends(get_active_user)):
+    """Get current authenticated user"""
+    user = db.query(User).filter(User.id == current_user["user_id"]).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return user
+
 @router.post("/login", response_model=TokenResponse)
-def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, user_credentials: UserLogin, db: Session = Depends(get_db)):
     """User login"""
     
     # Find user by username
@@ -60,36 +107,90 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
             detail="User account is disabled"
         )
     
-    # Create access token
-    access_token_expires = timedelta(minutes=30)
-    access_token = create_access_token(
-        data={"sub": user.username, "user_id": user.id, "role": user.role},
-        expires_delta=access_token_expires
-    )
+    try:
+        access_token, refresh_token = issue_token_pair(user, db)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Login could not be completed") from exc
     
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
-        "expires_in": 30 * 60  # seconds
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     }
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh_token(current_user: dict = Depends(get_current_user)):
-    """Refresh access token"""
-    # Create new access token
-    access_token_expires = timedelta(minutes=30)
-    access_token = create_access_token(
-        data={"sub": current_user["username"], "user_id": current_user["user_id"], "role": current_user["role"]},
-        expires_delta=access_token_expires
-    )
-    
+def refresh_token(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """Refresh access token using rotating refresh tokens"""
+    refresh_token_value = payload.refresh_token
+    if not refresh_token_value:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token is required")
+
+    decoded = decode_token(refresh_token_value, token_type="refresh")
+    if decoded is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+
+    db_token = db.query(RefreshToken).filter(RefreshToken.token_hash == hash_token(refresh_token_value)).first()
+    if not db_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token not recognized")
+
+    if db_token.revoked_at is not None or db_token.replaced_by_token_id is not None:
+        user_tokens = db.query(RefreshToken).filter(
+            RefreshToken.user_id == db_token.user_id,
+            RefreshToken.revoked_at.is_(None),
+        ).all()
+        now = utc_now()
+        for user_token in user_tokens:
+            user_token.revoked_at = now
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token has already been rotated or revoked")
+
+    now = utc_now()
+    if ensure_aware_utc(db_token.expires_at) <= now:
+        db_token.revoked_at = now
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token has expired")
+
+    user = db.query(User).filter(User.id == decoded.get("user_id")).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User is not available for refresh")
+
+    try:
+        access_token, new_refresh_token = issue_token_pair(user, db)
+        new_db_token = db.query(RefreshToken).filter(RefreshToken.token_hash == hash_token(new_refresh_token)).first()
+        db_token.revoked_at = now
+        db_token.last_used_at = now
+        if new_db_token:
+            db_token.replaced_by_token_id = new_db_token.id
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Refresh could not be completed") from exc
+
     return {
         "access_token": access_token,
+        "refresh_token": new_refresh_token,
         "token_type": "bearer",
-        "expires_in": 30 * 60
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     }
 
 @router.post("/logout")
-def logout(current_user: dict = Depends(get_current_user)):
-    """Logout user (client-side token removal)"""
+def logout(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """Logout user and revoke active refresh tokens for the submitted token owner"""
+    refresh_token_value = payload.refresh_token
+    if refresh_token_value:
+        token_hash = hash_token(refresh_token_value)
+        now = utc_now()
+        db_token = db.query(RefreshToken).filter(RefreshToken.token_hash == token_hash).first()
+        if db_token:
+            db.query(RefreshToken).filter(
+                RefreshToken.user_id == db_token.user_id,
+                RefreshToken.revoked_at.is_(None),
+            ).update(
+                {"revoked_at": now, "last_used_at": now},
+                synchronize_session=False,
+            )
+            db.commit()
     return {"message": "Successfully logged out"}

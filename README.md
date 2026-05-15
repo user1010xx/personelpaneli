@@ -1,6 +1,6 @@
-# Personel Panel - Proje Konfigürasyonu
+﻿# Personel Panel - Proje KonfigÃ¼rasyonu
 
-## Geliştirme Ortamı Kurulumu
+## GeliÅŸtirme OrtamÄ± Kurulumu
 
 ### Sistem Gereksinimleri
 - Python 3.11+
@@ -16,23 +16,23 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-.env dosyasında ayarları güncelleyin:
+.env dosyasÄ±nda ayarlarÄ± gÃ¼ncelleyin:
 ```
 DATABASE_URL=postgresql://user:password@localhost:5432/personelpanel
 SECRET_KEY=your-secret-key-here
 ```
 
-Database oluşturun:
+Database migration calistirin:
 ```bash
-python -c "from app.database import Base, engine; Base.metadata.create_all(bind=engine)"
+alembic upgrade head
 ```
 
-Backend'i başlatın:
+Backend'i baÅŸlatÄ±n:
 ```bash
 python main.py
 ```
 
-Backend Swagger dökümentasyonuna erişin: http://localhost:8000/docs
+Backend Swagger dÃ¶kÃ¼mentasyonuna eriÅŸin: http://localhost:8000/docs
 
 ### Frontend Kurulumu
 
@@ -42,133 +42,157 @@ npm install
 npm run dev
 ```
 
-Frontend erişimi: http://localhost:3000
+Frontend eriÅŸimi: http://localhost:3000
 
-### Docker ile Çalıştırma
+### Docker ile Ã‡alÄ±ÅŸtÄ±rma
 
 ```bash
 docker-compose up -d
 ```
 
 Bu otomatik olarak:
-- PostgreSQL veritabanını başlatır
-- Backend API'sını (8000) başlatır
-- Frontend'i (3000) başlatır
+- PostgreSQL veritabanÄ±nÄ± baÅŸlatÄ±r
+- Backend API'sÄ±nÄ± (8000) baÅŸlatÄ±r
+- Frontend'i (3000) baÅŸlatÄ±r
 
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - Yeni kullanıcı kayıt
-- `POST /api/auth/login` - Giriş
-- `GET /api/auth/me` - Mevcut kullanıcı bilgisi
+- `GET /api/auth/me` - Mevcut kullanÄ±cÄ± bilgisi
+- `POST /api/auth/register` - Yeni kullanÄ±cÄ± kayÄ±t
+- `POST /api/auth/login` - GiriÅŸ
+- `POST /api/auth/refresh` - Access token yenile
+- `POST /api/auth/logout` - Oturumu kapat
 
 ### User Management (Admin)
-- `GET /api/users` - Tüm kullanıcıları listele
-- `POST /api/users` - Yeni kullanıcı oluştur
-- `PUT /api/users/{id}` - Kullanıcı güncelle
-- `DELETE /api/users/{id}` - Kullanıcı sil
+- `GET /api/users` - TÃ¼m kullanÄ±cÄ±larÄ± listele
+- `POST /api/users` - Yeni kullanÄ±cÄ± oluÅŸtur
+- `PUT /api/users/{id}` - KullanÄ±cÄ± gÃ¼ncelle
+- `DELETE /api/users/{id}` - KullanÄ±cÄ± sil
 
 ### Personnel
-- `GET /api/personnel` - Tüm personeli listele
-- `GET /api/personnel/{id}` - Personel detayları
+- `GET /api/personnel` - TÃ¼m personeli listele
+- `GET /api/personnel/{id}` - Personel detaylarÄ±
 - `POST /api/personnel` - Yeni personel ekle
-- `PUT /api/personnel/{id}` - Personel güncelle
+- `PUT /api/personnel/{id}` - Personel gÃ¼ncelle
 - `DELETE /api/personnel/{id}` - Personel sil
+- `POST /api/personnel/sync-docs` - Personel verilerini Docs'tan senkronize et
 
 ### Sales
-- `GET /api/sales` - Satış verileri (filtreli)
-- `GET /api/sales/personnel/{id}/summary` - Personel satış özeti
-- `GET /api/sales/summary` - Tüm personel satış özeti
-- `POST /api/sales/upload-excel` - Excel dosyasından toplu yükle
-- `POST /api/sales` - Tek satış kaydı ekle
-- `PUT /api/sales/{id}` - Satış kaydı güncelle
+- `GET /api/sales` - SatÄ±ÅŸ verileri (filtreli)
+- `GET /api/sales/personnel/{id}/summary` - Personel satÄ±ÅŸ Ã¶zeti
+- `GET /api/sales/summary` - TÃ¼m personel satÄ±ÅŸ Ã¶zeti
+- `POST /api/sales/upload-excel` - Excel dosyasÄ±ndan toplu yÃ¼kle
+- `POST /api/sales` - Tek satÄ±ÅŸ kaydÄ± ekle
+- `PUT /api/sales/{id}` - SatÄ±ÅŸ kaydÄ± gÃ¼ncelle
 
 ### Attendance (Puantaj)
-- `GET /api/attendance` - Tüm puantaj kayıtları
-- `GET /api/attendance/{personnel_id}/{month}/{year}` - Aylık puantaj
-- `POST /api/attendance` - Puantaj kaydı ekle
-- `PUT /api/attendance/{id}` - Puantaj güncelle
+- `GET /api/attendance` - TÃ¼m puantaj kayÄ±tlarÄ±
+- `GET /api/attendance/{personnel_id}/{month}/{year}` - AylÄ±k puantaj
+- `POST /api/attendance` - Puantaj kaydÄ± ekle
+- `PUT /api/attendance/{id}` - Puantaj gÃ¼ncelle
 - `DELETE /api/attendance/{id}` - Puantaj sil
+- `POST /api/attendance/sync-docs` - Puantaj verilerini Docs'tan senkronize et
 
 ### Warnings
-- `GET /api/warnings` - Tüm uyarılar
-- `GET /api/warnings/personnel/{id}` - Personel uyarıları
-- `GET /api/warnings/personnel/{id}/summary` - Uyarı özeti
-- `POST /api/warnings` - Uyarı ekle
-- `PUT /api/warnings/{id}` - Uyarı güncelle
-- `DELETE /api/warnings/{id}` - Uyarı sil
+- `GET /api/warnings` - TÃ¼m uyarÄ±lar
+- `GET /api/warnings/personnel/{id}` - Personel uyarÄ±larÄ±
+- `GET /api/warnings/personnel/{id}/summary` - UyarÄ± Ã¶zeti
+- `POST /api/warnings` - UyarÄ± ekle
+- `PUT /api/warnings/{id}` - UyarÄ± gÃ¼ncelle
+- `DELETE /api/warnings/{id}` - UyarÄ± sil
+- `POST /api/warnings/sync-docs` - UyarÄ±larÄ± Docs'tan senkronize et
 
 ### Training
-- `GET /api/training` - Tüm eğitim kayıtları
-- `GET /api/training/personnel/{id}` - Personel eğitimleri
-- `POST /api/training` - Eğitim ekle
-- `PUT /api/training/{id}` - Eğitim güncelle
-- `DELETE /api/training/{id}` - Eğitim sil
+- `GET /api/training` - TÃ¼m eÄŸitim kayÄ±tlarÄ±
+- `GET /api/training/personnel/{id}` - Personel eÄŸitimleri
+- `POST /api/training` - EÄŸitim ekle
+- `PUT /api/training/{id}` - EÄŸitim gÃ¼ncelle
+- `DELETE /api/training/{id}` - EÄŸitim sil
 
 ### Call Monitoring
-- `GET /api/call-monitoring` - Tüm çağrı kayıtları
-- `GET /api/call-monitoring/personnel/{id}` - Personel çağrıları
-- `GET /api/call-monitoring/personnel/{id}/summary` - Çağrı özeti
-- `POST /api/call-monitoring` - Çağrı kaydı ekle
-- `PUT /api/call-monitoring/{id}` - Çağrı kaydı güncelle
-- `DELETE /api/call-monitoring/{id}` - Çağrı kaydı sil
+- `GET /api/call-monitoring` - TÃ¼m Ã§aÄŸrÄ± kayÄ±tlarÄ±
+- `GET /api/call-monitoring/personnel/{id}` - Personel Ã§aÄŸrÄ±larÄ±
+- `GET /api/call-monitoring/personnel/{id}/summary` - Ã‡aÄŸrÄ± Ã¶zeti
+- `POST /api/call-monitoring` - Ã‡aÄŸrÄ± kaydÄ± ekle
+- `PUT /api/call-monitoring/{id}` - Ã‡aÄŸrÄ± kaydÄ± gÃ¼ncelle
+- `DELETE /api/call-monitoring/{id}` - Ã‡aÄŸrÄ± kaydÄ± sil
 
 ### WhatsApp
-- `GET /api/whatsapp` - Tüm WhatsApp kayıtları
+- `GET /api/whatsapp` - TÃ¼m WhatsApp kayÄ±tlarÄ±
 - `GET /api/whatsapp/personnel/{id}` - Personel WhatsApp verisi
-- `GET /api/whatsapp/personnel/{id}/summary` - WhatsApp özeti
-- `POST /api/whatsapp` - WhatsApp kaydı ekle
-- `PUT /api/whatsapp/{id}` - WhatsApp kaydı güncelle
-- `DELETE /api/whatsapp/{id}` - WhatsApp kaydı sil
+- `GET /api/whatsapp/personnel/{id}/summary` - WhatsApp Ã¶zeti
+- `POST /api/whatsapp` - WhatsApp kaydÄ± ekle
+- `PUT /api/whatsapp/{id}` - WhatsApp kaydÄ± gÃ¼ncelle
+- `DELETE /api/whatsapp/{id}` - WhatsApp kaydÄ± sil
+- `POST /api/whatsapp/sync-docs` - WhatsApp verilerini Docs'tan senkronize et
 
-## Excel Formatı (Satış Dosyası)
+### Call Process
+- `GET /api/call-process` - Ã‡aÄŸrÄ± sÃ¼reÃ§ kayÄ±tlarÄ±nÄ± listele
+- `GET /api/call-process/summary` - Ã‡aÄŸrÄ± sÃ¼reÃ§ Ã¶zetini getir
+- `POST /api/call-process/upload-excel` - Excel ile Ã§aÄŸrÄ± sÃ¼reÃ§ verisi yÃ¼kle
+- `POST /api/call-process` - Ã‡aÄŸrÄ± sÃ¼reÃ§ kaydÄ± ekle
+- `PUT /api/call-process/{id}` - Ã‡aÄŸrÄ± sÃ¼reÃ§ kaydÄ± gÃ¼ncelle
 
-Excel dosyası şu sütunları içermelidir:
-- `Personnel Name` - Personel Adı
+### Docs Links
+- `GET /api/docs-links` - Docs baÄŸlantÄ±larÄ±nÄ± listele
+- `PUT /api/docs-links/{key}` - Docs baÄŸlantÄ±sÄ±nÄ± gÃ¼ncelle
+
+### Dashboard
+- `GET /api/dashboard/summary` - Dashboard Ã¶zet verilerini getir
+
+### System
+- `GET /health` - Uygulama saÄŸlÄ±k durumu
+- `GET /api/docs` - Basit endpoint Ã¶zeti
+
+## Excel FormatÄ± (SatÄ±ÅŸ DosyasÄ±)
+
+Excel dosyasÄ± ÅŸu sÃ¼tunlarÄ± iÃ§ermelidir:
+- `Personnel Name` - Personel AdÄ±
 - `Date` - Tarih (YYYY-MM-DD format)
-- `Sales Count` - Satış Adedi
+- `Sales Count` - SatÄ±ÅŸ Adedi
 
 ## Google Docs Entegrasyonu (Beklenen)
 
-Docs linklerini içine alacağı yerler:
+Docs linklerini iÃ§ine alacaÄŸÄ± yerler:
 - Puantaj verisi: `DOCS_PUANTAJ_ID` (.env'de)
-- Uyarı verisi: `DOCS_UYARILAR_ID` (.env'de)
+- UyarÄ± verisi: `DOCS_UYARILAR_ID` (.env'de)
 - WhatsApp verisi: `DOCS_WHATSAPP_ID` (.env'de)
 
-## Veritabanı Şeması
+## VeritabanÄ± ÅemasÄ±
 
-Tüm tablolar otomatik olarak oluşturulur. İçerik:
-- users: Kullanıcı hesapları
+TÃ¼m tablolar otomatik olarak oluÅŸturulur. Ä°Ã§erik:
+- users: KullanÄ±cÄ± hesaplarÄ±
 - personnel: Personel bilgileri
-- sales_data: Günlük satış verileri
-- attendance_data: Aylık puantaj/çalışma saatleri
-- warning_data: Uyarılar ve cezalar
-- training_data: Eğitim kayıtları
-- call_monitoring: Dinlenen çağrılar
-- whatsapp_data: WhatsApp cevapsız mesaj takibi
+- sales_data: GÃ¼nlÃ¼k satÄ±ÅŸ verileri
+- attendance_data: AylÄ±k puantaj/Ã§alÄ±ÅŸma saatleri
+- warning_data: UyarÄ±lar ve cezalar
+- training_data: EÄŸitim kayÄ±tlarÄ±
+- call_monitoring: Dinlenen Ã§aÄŸrÄ±lar
+- whatsapp_data: WhatsApp cevapsÄ±z mesaj takibi
 
-## Yapılacaklar
+## YapÄ±lacaklar
 
 - [ ] Docs API entegrasyonu (linkler gelince)
 - [ ] Dashboard analitik grafikleri
-- [ ] Gelişmiş raporlama
-- [ ] Mail notifikasyonları
+- [ ] GeliÅŸmiÅŸ raporlama
+- [ ] Mail notifikasyonlarÄ±
 - [ ] Veri backup sistemi
-- [ ] Kullanıcı rolleri (detaylı izinler)
+- [ ] KullanÄ±cÄ± rolleri (detaylÄ± izinler)
 - [ ] Audit logging
 
 ## Sorun Giderme
 
-### Database bağlantı hatası
+### Database baÄŸlantÄ± hatasÄ±
 ```bash
-# PostgreSQL'in çalışır durumda olduğunu kontrol edin
+# PostgreSQL'in Ã§alÄ±ÅŸÄ±r durumda olduÄŸunu kontrol edin
 psql -U personelpanel -h localhost -d personelpanel
 ```
 
-### CORS hatası
-- `.env` dosyasında CORS_ORIGINS kontrol edin
-- Backend ve Frontend'in doğru portlarda çalıştığını kontrol edin
+### CORS hatasÄ±
+- `.env` dosyasÄ±nda CORS_ORIGINS kontrol edin
+- Backend ve Frontend'in doÄŸru portlarda Ã§alÄ±ÅŸtÄ±ÄŸÄ±nÄ± kontrol edin
 
-### Excel yüklemeleri başarısız
-- Excel sütun adlarının tam olarak eşleştiğini kontrol edin
-- Dosya formatının .xlsx olduğunu kontrol edin
+### Excel yÃ¼klemeleri baÅŸarÄ±sÄ±z
+- Excel sÃ¼tun adlarÄ±nÄ±n tam olarak eÅŸleÅŸtiÄŸini kontrol edin
+- Dosya formatÄ±nÄ±n .xlsx olduÄŸunu kontrol edin

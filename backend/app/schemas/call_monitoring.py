@@ -1,25 +1,24 @@
 from pydantic import BaseModel, field_validator
 from typing import Optional
-from datetime import date, datetime
+from datetime import date as DateType, datetime
 import re
 
 class CallMonitoringBase(BaseModel):
     phone_number: str
     quality_score: float
-    date: date
+    date: DateType
     notes: Optional[str] = None
     
     @field_validator('phone_number')
     @classmethod
     def validate_phone_number(cls, v):
-        # Turkish phone number validation (basic)
         if not v or not v.strip():
             raise ValueError('Phone number cannot be empty')
-        # Remove spaces, dashes, etc.
-        cleaned = re.sub(r'[^\d]', '', v.strip())
-        if not re.match(r'^(\+90|0)?[5][0-9]{9}$', cleaned):
-            raise ValueError('Invalid Turkish phone number format')
-        return v.strip()
+        value = v.strip()
+        cleaned = re.sub(r'[^\d]', '', value)
+        if len(cleaned) < 10 or len(cleaned) > 15:
+            raise ValueError('Phone number must contain between 10 and 15 digits')
+        return value
     
     @field_validator('quality_score')
     @classmethod
@@ -31,7 +30,7 @@ class CallMonitoringBase(BaseModel):
     @field_validator('date')
     @classmethod
     def validate_date(cls, v):
-        if v > date.today():
+        if v > DateType.today():
             raise ValueError('Call monitoring date cannot be in the future')
         return v
     
@@ -48,20 +47,20 @@ class CallMonitoringCreate(CallMonitoringBase):
 class CallMonitoringUpdate(BaseModel):
     phone_number: Optional[str] = None
     quality_score: Optional[float] = None
-    date: Optional[date] = None
+    date: Optional[DateType] = None
     notes: Optional[str] = None
     
     @field_validator('phone_number')
     @classmethod
     def validate_phone_number(cls, v):
         if v is not None:
-            if not v or not v.strip():
+            value = v.strip()
+            if not value:
                 raise ValueError('Phone number cannot be empty')
-            # Remove spaces, dashes, etc.
-            cleaned = re.sub(r'[^\d]', '', v.strip())
-            if not re.match(r'^(\+90|0)?[5][0-9]{9}$', cleaned):
-                raise ValueError('Invalid Turkish phone number format')
-            return v.strip()
+            cleaned = re.sub(r'[^\d]', '', value)
+            if len(cleaned) < 10 or len(cleaned) > 15:
+                raise ValueError('Phone number must contain between 10 and 15 digits')
+            return value
         return v
     
     @field_validator('quality_score')
@@ -74,7 +73,7 @@ class CallMonitoringUpdate(BaseModel):
     @field_validator('date')
     @classmethod
     def validate_date(cls, v):
-        if v is not None and v > date.today():
+        if v is not None and v > DateType.today():
             raise ValueError('Call monitoring date cannot be in the future')
         return v
     

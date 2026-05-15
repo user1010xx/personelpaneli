@@ -1,3 +1,4 @@
+# cSpell:disable
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -17,7 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend application
 COPY backend/app ./app
 COPY backend/main.py .
-COPY backend/seed.py .
+COPY backend/tests ./tests
+COPY backend/alembic.ini .
+COPY backend/alembic ./alembic
 
 # Expose port
 EXPOSE 8000

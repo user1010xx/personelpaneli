@@ -29,6 +29,7 @@ build/
 .env
 .env.*
 !.env.example
+!backend/.env.example
 
 # IDE files
 .vscode/
@@ -45,7 +46,12 @@ Thumbs.db
 *.temp
 .cache/
 
-# Sensitive files (auto-detected)
-.env.example
+# Sensitive files
 .env.production
+backend/credentials.json
+backend/*credentials*.json
+credentials.json
+*credentials*.json
+diff.txt
+untracked.txt
 

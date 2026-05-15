@@ -1,20 +1,20 @@
-version: '3.8'
-
-services:
+﻿services:
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
     container_name: personelpanel_db
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: personelpanel
-      POSTGRES_PASSWORD: personelpanel_pass
-      POSTGRES_DB: personelpanel
+      POSTGRES_USER: ${POSTGRES_USER:-personelpanel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-personelpanel}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U personelpanel"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-personelpanel} -d $${POSTGRES_DB:-personelpanel}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,34 +25,31 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: personelpanel_backend
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://personelpanel:personelpanel_pass@db:5432/personelpanel
-      SECRET_KEY: your-secret-key-change-in-production
-      DEBUG: "True"
-      CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000"]'
+      DATABASE_URL: postgresql://${POSTGRES_USER:-personelpanel}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-personelpanel}
+    volumes:
+      - ${GOOGLE_CREDENTIALS_HOST_PATH:-./credentials.json}:/app/credentials.json:ro
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
     command: python main.py
 
   # Frontend
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
     container_name: personelpanel_frontend
     ports:
       - "3000:3000"
-    environment:
-      REACT_APP_API_URL: http://localhost:8000/api
     depends_on:
       - backend
-    volumes:
-      - ./frontend/src:/app/src
 
 volumes:
   postgres_data:

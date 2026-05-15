@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Time, Text, Index
+from sqlalchemy import Column, Integer, String, DateTime, Date, ForeignKey, Time, Text, Index, CheckConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from ..database import Base
@@ -19,9 +19,10 @@ class TrainingData(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    personnel = relationship("Personnel")
+    personnel = relationship("Personnel", back_populates="training_data")
     
     # Composite index for performance
     __table_args__ = (
         Index('idx_training_personnel_date', 'personnel_id', 'date'),
+        CheckConstraint('end_time > start_time', name='training_end_after_start'),
     )

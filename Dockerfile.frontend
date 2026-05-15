@@ -1,6 +1,10 @@
+# cSpell:disable
 FROM node:18-alpine
 
 WORKDIR /app
+
+ARG VITE_API_URL=http://localhost:8000/api
+ENV VITE_API_URL=$VITE_API_URL
 
 # Copy package files
 COPY frontend/package.json ./
@@ -14,6 +18,7 @@ COPY frontend/src ./src
 COPY frontend/index.html ./
 COPY frontend/vite.config.js ./
 COPY frontend/postcss.config.js ./
+COPY frontend/tailwind.config.js ./
 
 # Build for production
 RUN npm run build
