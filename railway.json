@@ -1,7 +1,7 @@
 {
   "services": [
     {
-      "name": "backend",
+      "name": "personelpaneli",
       "type": "docker",
       "build": {
         "dockerfilePath": "Dockerfile.backend",
@@ -13,8 +13,8 @@
       "name": "frontend",
       "type": "docker",
       "build": {
-        "dockerfilePath": "Dockerfile.frontend",
-        "context": "."
+        "dockerfilePath": "Dockerfile",
+        "context": "frontend"
       },
       "startCommand": "serve -s dist -l 3000"
     }
