@@ -1,0 +1,22 @@
+{
+  "services": [
+    {
+      "name": "backend",
+      "type": "docker",
+      "build": {
+        "dockerfilePath": "Dockerfile.backend",
+        "context": "."
+      },
+      "startCommand": "python main.py"
+    },
+    {
+      "name": "frontend",
+      "type": "docker",
+      "build": {
+        "dockerfilePath": "Dockerfile.frontend",
+        "context": "."
+      },
+      "startCommand": "serve -s dist -l 3000"
+    }
+  ]
+}
