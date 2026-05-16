@@ -26,7 +26,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
 
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000", "https://frontend-u4v3-production.up.railway.app"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "https://frontend-u4v3-production.up.railway.app",
+    ]
+    # Regex to match any Railway deployment URL (covers preview & production domains)
+    CORS_ORIGIN_REGEX: str = r"https://.*\.railway\.app"
 
     # Docs Links
     PERSONNEL_SHEET_ID: str = ""
