@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
 
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000", "https://frontend-u4v3-production.up.railway.app"]
 
     # Docs Links
     PERSONNEL_SHEET_ID: str = ""
