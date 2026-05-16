@@ -20,7 +20,16 @@ from ..schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse, R
 from ..config import settings
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
-limiter = Limiter(key_func=get_remote_address, enabled=settings.RATE_LIMIT_ENABLED)
+
+
+def _rate_limit_key(request: Request):
+    """Return the remote address for rate limiting, or None to skip OPTIONS preflight requests."""
+    if request.method == "OPTIONS":
+        return None
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=_rate_limit_key, enabled=settings.RATE_LIMIT_ENABLED)
 
 
 def issue_token_pair(user: User, db: Session):
