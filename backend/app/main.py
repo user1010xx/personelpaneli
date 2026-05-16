@@ -37,6 +37,7 @@ app = FastAPI(
     version=settings.API_VERSION,
     description="Personel Panel API - Call Center Management System",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 app.state.limiter = auth.limiter
