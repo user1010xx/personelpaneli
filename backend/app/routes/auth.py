@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -23,13 +24,19 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 def _rate_limit_key(request: Request):
-    """Return the remote address for rate limiting, or None to skip OPTIONS preflight requests."""
+    """Return the remote address for rate limiting, or a unique key for OPTIONS preflight requests.
+
+    slowapi does not honour a None return value as a skip signal — the request is still
+    processed and can raise a 400/429.  Returning a per-request UUID means every OPTIONS
+    preflight gets its own isolated bucket that will never accumulate enough hits to
+    trigger the configured limit, effectively bypassing rate limiting for those requests.
+    """
     if request.method == "OPTIONS":
-        return None
+        return str(uuid.uuid4())
     return get_remote_address(request)
 
 
-limiter = Limiter(key_func=_rate_limit_key, enabled=settings.RATE_LIMIT_ENABLED)
+limiter = Limiter(key_func=_rate_limit_key, enabled=settings.RATE_LIMIT_ENABLED, default_limits=[])
 
 
 def issue_token_pair(user: User, db: Session):
