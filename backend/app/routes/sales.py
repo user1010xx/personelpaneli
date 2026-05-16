@@ -20,7 +20,7 @@ from ..utils.excel import ExcelService
 router = APIRouter(prefix="/api/sales", tags=["Sales Management"])
 
 
-@router.get("/", response_model=List[SalesDataResponse])
+@router.get("", response_model=List[SalesDataResponse])
 def list_sales(
     personnel_id: int = None,
     start_date: date = None,

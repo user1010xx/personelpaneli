@@ -10,7 +10,7 @@ from ..utils.pagination import normalize_pagination
 
 router = APIRouter(prefix="/api/training", tags=["Eğitim ve Geribildirim"])
 
-@router.get("/", response_model=List[TrainingDataResponse])
+@router.get("", response_model=List[TrainingDataResponse])
 def list_training(
     personnel_id: int = None,
     skip: int = 0,

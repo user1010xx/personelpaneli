@@ -61,7 +61,7 @@ def calculate_totals(row: dict):
     return round(worked_days, 1), round(leave_days, 1)
 
 
-@router.get("/", response_model=List[AttendanceDataResponse])
+@router.get("", response_model=List[AttendanceDataResponse])
 def list_attendance(
     personnel_id: int = None,
     month: int = None,

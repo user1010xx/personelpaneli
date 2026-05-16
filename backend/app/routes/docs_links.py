@@ -98,7 +98,7 @@ def get_docs_link_config(db: Session, key: str, require_configured: bool = True)
     return docs_link
 
 
-@router.get("/", response_model=list[DocsLinkResponse])
+@router.get("", response_model=list[DocsLinkResponse])
 def list_docs_links(
     db: Session = Depends(get_db),
     admin: dict = Depends(get_admin_user)
