@@ -20,7 +20,7 @@ from ..utils.pagination import normalize_pagination
 router = APIRouter(prefix="/api/call-process", tags=["Call Process"])
 
 
-@router.get("/", response_model=List[CallProcessDataResponse])
+@router.get("", response_model=List[CallProcessDataResponse])
 def list_call_process(
     personnel_id: int = None,
     start_date: date = None,

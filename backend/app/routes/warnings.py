@@ -31,7 +31,7 @@ def parse_warning_date(value: str):
     return None
 
 
-@router.get("/", response_model=List[WarningDataResponse])
+@router.get("", response_model=List[WarningDataResponse])
 def list_warnings(
     personnel_id: int = None,
     skip: int = 0,

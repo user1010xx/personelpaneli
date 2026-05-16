@@ -10,7 +10,7 @@ from ..utils.pagination import normalize_pagination
 
 router = APIRouter(prefix="/api/call-monitoring", tags=["Kalite Puanlaması"])
 
-@router.get("/", response_model=List[CallMonitoringResponse])
+@router.get("", response_model=List[CallMonitoringResponse])
 def list_call_records(
     personnel_id: int = None,
     skip: int = 0,

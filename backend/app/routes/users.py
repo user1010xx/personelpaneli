@@ -14,7 +14,7 @@ from ..utils.pagination import normalize_pagination
 
 router = APIRouter(prefix="/api/users", tags=["User Management"])
 
-@router.get("/", response_model=List[UserResponse])
+@router.get("", response_model=List[UserResponse])
 def list_users(
     skip: int = 0,
     limit: int = 100,

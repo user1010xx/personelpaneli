@@ -59,7 +59,7 @@ def extract_row_value(row: dict, keys: list[str]) -> str:
     return ""
 
 
-@router.get("/", response_model=List[WhatsAppDataResponse])
+@router.get("", response_model=List[WhatsAppDataResponse])
 def list_whatsapp_data(
     personnel_id: int = None,
     start_date: date = None,

@@ -65,7 +65,7 @@ def find_existing_personnel(db: Session, username: str):
     return db.query(Personnel).filter(Personnel.employee_id == username).first()
 
 
-@router.get("/", response_model=List[PersonnelResponse])
+@router.get("", response_model=List[PersonnelResponse])
 def list_personnel(
     skip: int = 0,
     limit: int = 1000,
